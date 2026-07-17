@@ -1,0 +1,138 @@
+"use client";
+
+import {
+  ComposedChart,
+  Line,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  LabelList,
+  Legend,
+} from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SWING_POINTS, CURRENT_MARKET } from "@/lib/market-analysis";
+import { TRADE_PLAN } from "@/lib/trade-plan";
+
+/**
+ * Weekly + Daily swing-point sequence (HH / HL / LH / LL).
+ * Uses weekly points for the macro structure visualization.
+ */
+const chartData = SWING_POINTS.filter((s) => s.timeframe === "W" || s.timeframe === "D").map((s) => ({
+  time: s.time,
+  price: s.price,
+  kind: s.kind,
+  note: s.note,
+}));
+
+const kindColor: Record<string, string> = {
+  HH: "#16a34a", // green
+  HL: "#22c55e",
+  LH: "#ef4444", // red
+  LL: "#dc2626",
+};
+
+const kindShape: Record<string, "circle" | "square" | "triangle" | "diamond"> = {
+  HH: "triangle",
+  HL: "circle",
+  LH: "square",
+  LL: "diamond",
+};
+
+export function StructureChart() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Market Structure — HH / HL / LH / LL Sequence</CardTitle>
+        <CardDescription>
+          Weekly + Daily swing-point sequence. Macro structure flipped bearish after the March LH at $5,400.
+          Each subsequent swing has printed LH → LL confirming the downtrend.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[420px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData} margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis
+                dataKey="time"
+                tick={{ fontSize: 11 }}
+                angle={-25}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                domain={[3500, 5800]}
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => `$${v.toLocaleString()}`}
+              />
+              <Tooltip
+                formatter={(value: number, _name, item: any) => [
+                  `$${value.toLocaleString()}`,
+                  `${item?.payload?.kind} — ${item?.payload?.note ?? ""}`,
+                ]}
+                labelFormatter={(l) => `Swing: ${l}`}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Legend />
+
+              {/* Reference lines: key structural levels */}
+              <ReferenceLine y={CURRENT_MARKET.ath} stroke="#7c3aed" strokeDasharray="6 4" label={{ value: `ATH $${CURRENT_MARKET.ath}`, position: "insideTopRight", fontSize: 10, fill: "#7c3aed" }} />
+              <ReferenceLine y={CURRENT_MARKET.spot} stroke="#0ea5e9" strokeDasharray="2 2" label={{ value: `Spot $${CURRENT_MARKET.spot}`, position: "insideTopRight", fontSize: 10, fill: "#0ea5e9" }} />
+              <ReferenceLine y={CURRENT_MARKET.eightMonthLow} stroke="#dc2626" strokeDasharray="4 2" label={{ value: `8-mo low $${CURRENT_MARKET.eightMonthLow}`, position: "insideBottomRight", fontSize: 10, fill: "#dc2626" }} />
+              <ReferenceLine y={TRADE_PLAN.takeProfit} stroke="#059669" strokeDasharray="4 4" label={{ value: `TP $${TRADE_PLAN.takeProfit}`, position: "insideBottomRight", fontSize: 10, fill: "#059669" }} />
+
+              {/* Price line connecting swing points */}
+              <Line
+                type="monotone"
+                dataKey="price"
+                stroke="hsl(var(--foreground))"
+                strokeWidth={1.5}
+                dot={false}
+                legendType="none"
+              />
+
+              {/* Swing-point scatter */}
+              <Scatter dataKey="price" fill="#8884d8" legendType="none">
+                {chartData.map((entry, index) => (
+                  <Scatter
+                    key={`sc-${index}`}
+                    dataKey="price"
+                    data={[entry]}
+                    fill={kindColor[entry.kind]}
+                    shape={kindShape[entry.kind]}
+                  />
+                ))}
+                <LabelList
+                  dataKey="kind"
+                  position="top"
+                  offset={8}
+                  fontSize={10}
+                  fill="hsl(var(--foreground))"
+                />
+              </Scatter>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-4 text-xs">
+          {Object.entries(kindColor).map(([k, c]) => (
+            <div key={k} className="flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
+              <span className="font-mono font-semibold">{k}</span>
+              <span className="text-muted-foreground">
+                {k === "HH" && "Higher High (bullish)"}
+                {k === "HL" && "Higher Low (bullish)"}
+                {k === "LH" && "Lower High (bearish)"}
+                {k === "LL" && "Lower Low (bearish)"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
