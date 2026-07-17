@@ -67,3 +67,26 @@ Stage Summary:
   - `/README.md`
   - `/research/*.json` (6 raw search-result files)
   - `/download/xauusd-dashboard-*.png` (5 verification screenshots)
+
+---
+Task ID: 2
+Agent: Main agent (Super Z)
+Task: User reported "Layar masih banyak yang kosong MTF TOP DOWN CEK" — the Top-Down Analysis section had empty areas, particularly visible in the MTF (Daily) card. Investigate and fix the layout.
+
+Work Log:
+- Opened the dashboard in Agent Browser and inspected the #topdown section.
+- Found root cause: the original TopDown component used a 2-column layout with a narrow left column (just "W" / "HTF" label) and a tall right column (header + levels + structure + narrative). Because the right column was much taller than the left column's centered label, the left column had large empty vertical space above and below the label.
+- Redesigned the TopDown component with a denser, full-width card layout:
+  - Header bar (full width): timeframe badge (W/D/4H/1H in colored square) + label + role + bias badge all in one row
+  - Body: 3-column grid on desktop (Resistance | Support | Structure), stacked on mobile
+  - Narrative: full-width footer band with "Analysis:" prefix
+  - Removed the narrow left column entirely — no more empty space
+- Added visual polish: colored left border accents per bias, colored dots next to Resistance/Support labels, separator dividers between grid columns on desktop.
+- Verified: ESLint clean, 50/50 tests pass, Agent Browser confirms layout works on both desktop (1280×800) and mobile (390×844).
+- Captured new screenshots: topdown-fixed-desktop.png, topdown-fixed-mid.png, topdown-fixed-bottom.png, topdown-fixed-mobile.png
+
+Stage Summary:
+- TopDown section redesigned with no empty space — every card now uses full width efficiently.
+- Layout: header bar → 3-column grid (Resistance/Support/Structure) → narrative footer.
+- Mobile responsive: 3-column grid stacks vertically on small screens.
+- All quality gates still pass: lint clean, 50/50 tests pass.

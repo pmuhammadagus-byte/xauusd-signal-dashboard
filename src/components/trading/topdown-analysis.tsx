@@ -2,14 +2,30 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { TOPDOWN } from "@/lib/market-analysis";
-import { ArrowDown, Check, Minus } from "lucide-react";
+import { ArrowDown, Check, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 const biasColor = {
-  bearish: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900",
-  bullish: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900",
-  neutral: "text-muted-foreground bg-muted/40 border-border",
+  bearish: {
+    text: "text-rose-600 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-950/30",
+    border: "border-rose-200 dark:border-rose-900",
+    accent: "bg-rose-500",
+  },
+  bullish: {
+    text: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    border: "border-emerald-200 dark:border-emerald-900",
+    accent: "bg-emerald-500",
+  },
+  neutral: {
+    text: "text-muted-foreground",
+    bg: "bg-muted/40",
+    border: "border-border",
+    accent: "bg-muted-foreground",
+  },
 };
 
 export function TopDownAnalysis() {
@@ -28,65 +44,91 @@ export function TopDownAnalysis() {
       </CardHeader>
       <CardContent>
         <div className="grid gap-3">
-          {TOPDOWN.map((tf, i) => (
-            <motion.div
-              key={tf.timeframe}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08 }}
-              className="rounded-lg border bg-card overflow-hidden"
-            >
-              <div className="flex items-stretch">
-                <div className={`flex flex-col items-center justify-center px-4 sm:px-6 border-r-2 ${biasColor[tf.bias]}`}>
-                  <span className="text-2xl sm:text-3xl font-bold">{tf.timeframe}</span>
-                  <span className="text-[10px] uppercase tracking-wider opacity-80 mt-1">{tf.label.split(" ")[1]?.replace(/[()]/g, "")}</span>
+          {TOPDOWN.map((tf, i) => {
+            const c = biasColor[tf.bias];
+            const role = tf.label.match(/\(([^)]+)\)/)?.[1] ?? "";
+            const tfName = tf.label.split(" ")[0];
+            const BiasIcon = tf.bias === "neutral" ? Minus : tf.bias === "bearish" ? TrendingDown : TrendingUp;
+
+            return (
+              <motion.div
+                key={tf.timeframe}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className={`rounded-lg border ${c.border} ${c.bg} overflow-hidden`}
+              >
+                {/* Header bar — full width, dense */}
+                <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5 border-b border-border/60 bg-background/50">
+                  <div className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-md ${c.accent} text-white font-bold text-base shadow-sm`}>
+                    {tf.timeframe}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="font-semibold text-sm sm:text-base">{tfName}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{role}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">{tf.role}</div>
+                  </div>
+                  <Badge variant="outline" className={`text-xs capitalize shrink-0 ${c.text} ${c.border}`}>
+                    <BiasIcon className="mr-1 h-3 w-3" />
+                    {tf.bias}
+                  </Badge>
                 </div>
 
-                <div className="flex-1 p-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                    <div>
-                      <div className="text-sm font-semibold">{tf.label}</div>
-                      <div className="text-xs text-muted-foreground">{tf.role}</div>
+                {/* Body — 3-column grid on desktop, stacked on mobile */}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1.6fr] divide-y sm:divide-y-0 sm:divide-x divide-border/60">
+                  {/* Resistance */}
+                  <div className="px-3 sm:px-4 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      Resistance
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`text-xs capitalize ${biasColor[tf.bias]}`}>
-                        {tf.bias === "bearish" ? <Check className="mr-1 h-3 w-3" /> : tf.bias === "bullish" ? <Check className="mr-1 h-3 w-3" /> : <Minus className="mr-1 h-3 w-3" />}
-                        {tf.bias}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2 mb-2">
-                    <div className="text-xs">
-                      <div className="text-muted-foreground uppercase tracking-wide text-[10px] mb-0.5">Resistance</div>
-                      <div className="flex flex-wrap gap-1">
-                        {tf.keyLevels.resistance.map((r) => (
-                          <span key={r} className="font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded text-[11px]">${r}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-xs">
-                      <div className="text-muted-foreground uppercase tracking-wide text-[10px] mb-0.5">Support</div>
-                      <div className="flex flex-wrap gap-1">
-                        {tf.keyLevels.support.map((s) => (
-                          <span key={s} className="font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded text-[11px]">${s}</span>
-                        ))}
-                      </div>
+                    <div className="flex flex-wrap gap-1">
+                      {tf.keyLevels.resistance.map((r) => (
+                        <span key={r} className="font-mono text-rose-600 dark:text-rose-400 bg-rose-100/60 dark:bg-rose-950/40 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                          ${r.toLocaleString()}
+                        </span>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="text-xs text-muted-foreground mb-2">
-                    <span className="font-semibold text-foreground">Structure:</span> {tf.structure}
+                  {/* Support */}
+                  <div className="px-3 sm:px-4 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Support
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {tf.keyLevels.support.map((s) => (
+                        <span key={s} className="font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                          ${s.toLocaleString()}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  <p className="text-xs leading-relaxed">{tf.narrative}</p>
+                  {/* Structure */}
+                  <div className="px-3 sm:px-4 py-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Structure</div>
+                    <div className="text-xs font-medium leading-snug">{tf.structure}</div>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+
+                {/* Narrative — full width */}
+                <div className="px-3 sm:px-4 py-2.5 border-t border-border/60 bg-background/30">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    <span className="font-semibold text-foreground">Analysis: </span>
+                    {tf.narrative}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
-        <div className="mt-4 rounded-lg border-2 border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/20 p-3">
+        {/* Alignment summary */}
+        <div className="mt-4 rounded-lg border-2 border-rose-300 dark:border-rose-800 bg-rose-50/70 dark:bg-rose-950/30 p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-300">
             <Check className="h-4 w-4" />
             Four-Timeframe Alignment: BEARISH (4/4)
