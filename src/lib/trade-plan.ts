@@ -163,3 +163,166 @@ export function computePositionSize(
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/**
+ * Trade Plan Validity Status
+ * ===========================
+ * A trade plan is NOT valid forever. It expires when:
+ *   1. Price hits stop loss (HIT_SL)
+ *   2. Price hits take profit (HIT_TP)
+ *   3. Daily close above invalidation level ($4,085 for this SHORT)
+ *   4. Setup ages beyond reasonable window (default: 30 days from generation)
+ *
+ * Methodology concepts (HH/HL, BOS, CHoCH, supply/demand, liquidity) are
+ * timeless — they apply forever. But the SPECIFIC trade plan (Entry $4,055,
+ * SL $4,085, TP $3,845) is time-sensitive and must be re-derived when expired.
+ */
+export type PlanValidityStatus =
+  | "ACTIVE"      // Setup is live and waiting for entry / in progress
+  | "HIT_TP"      // Take profit hit — book the win, plan complete
+  | "HIT_SL"      // Stop loss hit — plan invalidated, wait for new setup
+  | "EXPIRED"     // Setup aged beyond validity window (30 days)
+  | "INVALIDATED"; // Structural invalidation (daily close above $4,085)
+
+export interface PlanValidity {
+  status: PlanValidityStatus;
+  /** Days since the plan was generated */
+  ageInDays: number;
+  /** Maximum age in days before the plan is considered expired */
+  maxAgeInDays: number;
+  /** True if the plan is still actionable */
+  isActionable: boolean;
+  /** Human-readable message */
+  message: string;
+  /** What the user should do next */
+  nextAction: string;
+  /** ISO timestamp when the plan expires (generatedAt + maxAgeInDays) */
+  expiresAt: string;
+}
+
+const MAX_PLAN_AGE_DAYS = 30;
+
+/**
+ * Compute the validity status of the trade plan.
+ * Pure function — given current live price + signal status, returns validity.
+ */
+export function computePlanValidity(
+  livePrice: number | null,
+  signalStatus: string | null,
+): PlanValidity {
+  const generatedAt = new Date(TRADE_PLAN.generatedAt);
+  const now = new Date();
+  const ageInMs = now.getTime() - generatedAt.getTime();
+  const ageInDays = Math.floor(ageInMs / (1000 * 60 * 60 * 24));
+  const expiresAt = new Date(generatedAt.getTime() + MAX_PLAN_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  // Priority 1: Signal status from live feed
+  if (signalStatus === "HIT_TP") {
+    return {
+      status: "HIT_TP",
+      ageInDays,
+      maxAgeInDays: MAX_PLAN_AGE_DAYS,
+      isActionable: false,
+      message: "🎯 TAKE PROFIT HIT — trade plan complete. Target $3,845 achieved.",
+      nextAction: "Book your profits. This specific trade plan is now closed. Run a fresh top-down analysis to find the next setup — the market structure has likely shifted.",
+      expiresAt,
+    };
+  }
+
+  if (signalStatus === "HIT_SL") {
+    return {
+      status: "HIT_SL",
+      ageInDays,
+      maxAgeInDays: MAX_PLAN_AGE_DAYS,
+      isActionable: false,
+      message: "❌ STOP LOSS HIT — trade plan invalidated at $4,085.",
+      nextAction: "Accept the loss. This specific trade plan is closed. The bearish thesis was wrong — re-analyze from scratch. Possibly the macro trend has flipped bullish (watch for weekly bullish CHoCH above $4,200).",
+      expiresAt,
+    };
+  }
+
+  // Priority 2: Age-based expiry (setup too old)
+  if (ageInDays > MAX_PLAN_AGE_DAYS) {
+    return {
+      status: "EXPIRED",
+      ageInDays,
+      maxAgeInDays: MAX_PLAN_AGE_DAYS,
+      isActionable: false,
+      message: `⏰ SETUP EXPIRED — ${ageInDays} days old (max ${MAX_PLAN_AGE_DAYS} days). Market structure has shifted.`,
+      nextAction: "Run a fresh top-down analysis. The structural levels (entry/SL/TP) derived on 2026-07-17 are no longer reliable — price has had time to print new HH/HL/LH/LL sequences that invalidate the old setup.",
+      expiresAt,
+    };
+  }
+
+  // Priority 3: Structural invalidation (daily close above $4,085)
+  // Note: We can't detect "daily close" from live price alone, but if price
+  // is significantly above the invalidation level, warn the user.
+  if (livePrice !== null && livePrice > TRADE_PLAN.stopLoss + 10) {
+    return {
+      status: "INVALIDATED",
+      ageInDays,
+      maxAgeInDays: MAX_PLAN_AGE_DAYS,
+      isActionable: false,
+      message: `⚠️ INVALIDATED — live price $${livePrice.toFixed(2)} is above stop loss $${TRADE_PLAN.stopLoss}. Bearish thesis is wrong.`,
+      nextAction: "This setup is dead. The price has reclaimed the range high and 20-SMA, breaking the LH structure at $4,060. Wait for a new bearish CHoCH or look for long setups if bullish structure develops.",
+      expiresAt,
+    };
+  }
+
+  // Plan is active and actionable
+  const daysLeft = MAX_PLAN_AGE_DAYS - ageInDays;
+  return {
+    status: "ACTIVE",
+    ageInDays,
+    maxAgeInDays: MAX_PLAN_AGE_DAYS,
+    isActionable: true,
+    message: `✅ ACTIVE — trade plan is valid and actionable. ${daysLeft} day${daysLeft === 1 ? "" : "s"} until expiry.`,
+    nextAction: "Place the limit sell at $4,055. Monitor the live signal — when price rallies into the supply zone, the order will fill automatically.",
+    expiresAt,
+  };
+}
+
+/**
+ * Categorize dashboard sections by data freshness type.
+ * Used to show users what's timeless vs time-sensitive.
+ */
+export type DataFreshnessType =
+  | "timeless"           // Methodology concepts — valid forever
+  | "structural"         // Key levels, swing points — shift over weeks/months
+  | "time-sensitive"     // Trade plan, BOS/CHoCH — expire when price hits SL/TP
+  | "live";              // Current price, PnL — update every 60s
+
+export interface DataFreshnessInfo {
+  type: DataFreshnessType;
+  label: string;
+  description: string;
+  color: string;
+}
+
+export const DATA_FRESHNESS: Record<DataFreshnessType, DataFreshnessInfo> = {
+  timeless: {
+    type: "timeless",
+    label: "TIMELESS",
+    description: "Valid forever — methodology concepts don't change",
+    color: "text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 border-violet-300 dark:border-violet-800",
+  },
+  structural: {
+    type: "structural",
+    label: "STRUCTURAL",
+    description: "Shifts over weeks/months — re-derive when market structure changes",
+    color: "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800",
+  },
+  "time-sensitive": {
+    type: "time-sensitive",
+    label: "TIME-SENSITIVE",
+    description: "Expires when price hits SL/TP or after 30 days — re-analyze when expired",
+    color: "text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800",
+  },
+  live: {
+    type: "live",
+    label: "LIVE",
+    description: "Updates every 60 seconds via SSE from gold-api.com",
+    color: "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800",
+  },
+};
+

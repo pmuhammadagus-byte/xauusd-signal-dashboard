@@ -1,4 +1,4 @@
-import { AlertTriangle, Radio } from "lucide-react";
+import { AlertTriangle, Radio, BookOpen } from "lucide-react";
 import { TradePlanHero } from "@/components/trading/trade-plan-hero";
 import { LiveSignalBanner } from "@/components/trading/live-signal-banner";
 import { LiveTradePanel } from "@/components/trading/live-trade-panel";
@@ -13,6 +13,8 @@ import { CandlestickConfirmations, ChartPatternValidation } from "@/components/t
 import { MethodologyDocs } from "@/components/trading/methodology-docs";
 import { RiskCalculator } from "@/components/trading/risk-calculator";
 import { Sources } from "@/components/trading/sources";
+import { PlanValidityBanner } from "@/components/trading/plan-validity-banner";
+import { DataFreshnessBadge, DataFreshnessLegend } from "@/components/trading/data-freshness-badge";
 import { CURRENT_MARKET } from "@/lib/market-analysis";
 import { TRADE_PLAN } from "@/lib/trade-plan";
 
@@ -83,8 +85,17 @@ export default function Home() {
 
       {/* Main content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
+        {/* Plan validity banner — explains what's timeless vs time-sensitive */}
+        <section id="plan-validity">
+          <PlanValidityBanner />
+        </section>
+
         {/* LIVE signal banner — always at top */}
         <section id="live-signal">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="live" />
+            <span className="text-xs text-muted-foreground">Updates every 60 seconds via SSE from gold-api.com</span>
+          </div>
           <LiveSignalBanner />
         </section>
 
@@ -96,53 +107,102 @@ export default function Home() {
 
         {/* Hero trade plan (the structural setup) */}
         <section id="trade-plan">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="time-sensitive" />
+            <span className="text-xs text-muted-foreground">Specific levels expire when price hits SL/TP or after 30 days</span>
+          </div>
           <TradePlanHero />
         </section>
 
         {/* Market overview */}
         <section id="market">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="live" />
+            <DataFreshnessBadge type="structural" />
+            <span className="text-xs text-muted-foreground">Live price + structural levels (shift over weeks)</span>
+          </div>
           <MarketOverview />
         </section>
 
         {/* Top-down analysis */}
         <section id="topdown">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="timeless" />
+            <span className="text-xs text-muted-foreground">Workflow is timeless — apply to any market state</span>
+          </div>
           <TopDownAnalysis />
         </section>
 
         {/* Structure chart */}
         <section id="structure">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="structural" />
+            <DataFreshnessBadge type="live" />
+            <span className="text-xs text-muted-foreground">Swing points shift over weeks; live price updates real-time</span>
+          </div>
           <StructureChart />
         </section>
 
         {/* Supply/demand chart */}
         <section id="zones">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="structural" />
+            <DataFreshnessBadge type="live" />
+            <span className="text-xs text-muted-foreground">Zones shift; live price updates real-time</span>
+          </div>
           <SupplyDemandChart />
         </section>
 
         {/* Liquidity map */}
         <section id="liquidity">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="structural" />
+            <DataFreshnessBadge type="live" />
+            <span className="text-xs text-muted-foreground">Stop pools shift; live price updates real-time</span>
+          </div>
           <LiquidityMap />
         </section>
 
         {/* BOS/CHoCH timeline */}
         <section id="events">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="time-sensitive" />
+            <span className="text-xs text-muted-foreground">Events expire when trade plan closes; new events form over time</span>
+          </div>
           <BosChochTimeline />
         </section>
 
         {/* Candlestick + pattern validation */}
         <section id="confirmations" className="grid gap-6 lg:grid-cols-2">
+          <div className="lg:col-span-2 mb-[-12px] flex items-center gap-2">
+            <DataFreshnessBadge type="time-sensitive" />
+            <span className="text-xs text-muted-foreground">Specific patterns expire; pattern types are timeless</span>
+          </div>
           <CandlestickConfirmations />
           <ChartPatternValidation />
         </section>
 
         {/* Risk calculator */}
         <section id="risk">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="timeless" />
+            <span className="text-xs text-muted-foreground">Risk math is timeless — applies to any trade</span>
+          </div>
           <RiskCalculator />
         </section>
 
         {/* Methodology */}
         <section id="methodology">
+          <div className="mb-2 flex items-center gap-2">
+            <DataFreshnessBadge type="timeless" />
+            <span className="text-xs text-muted-foreground">Valid forever — trading concepts never change</span>
+          </div>
           <MethodologyDocs />
+        </section>
+
+        {/* Data freshness legend */}
+        <section id="legend">
+          <DataFreshnessLegend />
         </section>
 
         {/* Sources */}
@@ -162,11 +222,16 @@ export default function Home() {
             <div>Generated {new Date(TRADE_PLAN.generatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</div>
           </div>
           <div className="text-[10px] leading-relaxed">
-            This analysis is generated by AI using methodologies from canonical trading literature
-            (ICT / Smart Money Concepts, classical price action, candlestick analysis, and chart-pattern trading).
-            All structural levels are derived from observed market data as of {CURRENT_MARKET.asOf}.
-            Market conditions change rapidly — verify all levels against live charts before executing.
-            Past performance is not indicative of future results. You are solely responsible for your trading decisions.
+            <strong>What's timeless vs time-sensitive:</strong> The methodology concepts
+            (HH/HL/LH/LL, BOS, CHoCH, supply/demand, liquidity, candlestick, chart patterns)
+            and the top-down workflow (Weekly → Daily → 4H → 1H) are <strong>timeless</strong> —
+            they apply the same way forever, on any market. The <strong>specific trade plan</strong>
+            (Entry $4,055, SL $4,085, TP $3,845) and structural levels (key swing points, zones)
+            are <strong>time-sensitive</strong> — they expire when price hits SL/TP, invalidates
+            structurally, or after 30 days. When the plan expires, re-run the top-down analysis
+            to derive fresh levels. Live price feed (gold-api.com) updates every 60 seconds.
+            This is educational analysis, not financial advice. You are solely responsible for
+            your trading decisions.
           </div>
         </div>
       </footer>
