@@ -44,6 +44,21 @@ const kindShape: Record<string, "circle" | "square" | "triangle" | "diamond"> = 
 export function StructureChart() {
   const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
   const livePrice = state?.currentPrice ?? CURRENT_MARKET.spot;
+  const liveSwings = state?.liveStructure?.swings ?? [];
+  const liveTrend = state?.liveStructure?.trend ?? "unknown";
+  const liveSMA20 = state?.liveStructure?.sma20;
+  const liveSMA50 = state?.liveStructure?.sma50;
+
+  // Combine static (weekly/daily) + live (intraday) swings
+  const combinedData = [
+    ...chartData,
+    ...liveSwings.map((s, i) => ({
+      time: `Live ${i + 1}`,
+      price: s.price,
+      kind: s.kind,
+      note: `Live intraday ${s.kind} at $${s.price.toFixed(2)} (${new Date(s.timestamp).toLocaleTimeString()})`,
+    })),
+  ];
 
   return (
     <Card>
@@ -75,7 +90,7 @@ export function StructureChart() {
       <CardContent>
         <div className="h-[420px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
+            <ComposedChart data={combinedData} margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis
                 dataKey="time"
@@ -131,7 +146,7 @@ export function StructureChart() {
 
               {/* Swing-point scatter */}
               <Scatter dataKey="price" fill="#8884d8" legendType="none">
-                {chartData.map((entry, index) => (
+                {combinedData.map((entry, index) => (
                   <Scatter
                     key={`sc-${index}`}
                     dataKey="price"
@@ -173,7 +188,58 @@ export function StructureChart() {
             {state && <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1"><Radio className="h-3 w-3" />{state.source}</span>}
           </div>
         </div>
+
+        {/* Live structure summary */}
+        {state?.liveStructure && liveSwings.length > 0 && (
+          <div className="mt-4 rounded-lg border-2 border-sky-300 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-3">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Radio className="h-4 w-4 text-sky-500 animate-pulse" />
+                <span className="text-sm font-semibold text-sky-700 dark:text-sky-300">
+                  Live Intraday Structure (auto-detected)
+                </span>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                Trend: <span className={`ml-1 font-bold ${liveTrend === "bullish" ? "text-emerald-600" : liveTrend === "bearish" ? "text-rose-600" : "text-muted-foreground"}`}>
+                  {liveTrend.toUpperCase()}
+                </span>
+              </Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-4 text-xs">
+              <LiveStat label="Live Swings" value={`${liveSwings.length}`} sub="auto-detected" />
+              <LiveStat label="Session High" value={`$${state.liveStructure.sessionHigh.toFixed(2)}`} sub="from live ticks" />
+              <LiveStat label="Session Low" value={`$${state.liveStructure.sessionLow.toFixed(2)}`} sub="from live ticks" />
+              <LiveStat label="Ticks Analyzed" value={`${state.liveStructure.tickCount}`} sub={`computed ${new Date(state.liveStructure.computedAt).toLocaleTimeString()}`} />
+            </div>
+            {liveSwings.length > 0 && (
+              <div className="mt-2 text-xs">
+                <span className="text-muted-foreground">Recent swings: </span>
+                {liveSwings.slice(-5).map((s, i) => (
+                  <span key={i} className="inline-block mx-1 px-1.5 py-0.5 rounded font-mono text-[10px]" style={{ background: kindColor[s.kind] + "30", color: kindColor[s.kind] }}>
+                    {s.kind} ${s.price.toFixed(0)}
+                  </span>
+                ))}
+              </div>
+            )}
+            {(liveSMA20 || liveSMA50) && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Live SMA: {liveSMA20 && <span className="font-mono">20-tick=${liveSMA20.toFixed(2)}</span>}
+                {liveSMA50 && <span className="font-mono ml-3">50-tick=${liveSMA50.toFixed(2)}</span>}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function LiveStat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="rounded border bg-background p-2">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-base font-bold tabular-nums">{value}</div>
+      <div className="text-[9px] text-muted-foreground">{sub}</div>
+    </div>
   );
 }

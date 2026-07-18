@@ -12,8 +12,33 @@ export function LiquidityMap() {
   const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
   const livePrice = state?.currentPrice ?? TRADE_PLAN.spotReference;
 
-  const above = LIQUIDITY.filter((l) => l.side === "above").sort((a, b) => a.price - b.price);
-  const below = LIQUIDITY.filter((l) => l.side === "below").sort((a, b) => b.price - a.price);
+  // Static pools from research
+  const staticAbove = LIQUIDITY.filter((l) => l.side === "above").sort((a, b) => a.price - b.price);
+  const staticBelow = LIQUIDITY.filter((l) => l.side === "below").sort((a, b) => b.price - a.price);
+
+  // Live pools from tick history (auto-detected)
+  const livePools = state?.liveStructure?.liquidity ?? [];
+  const liveAbove = livePools.filter((l) => l.side === "above").sort((a, b) => a.price - b.price);
+  const liveBelow = livePools.filter((l) => l.side === "below").sort((a, b) => b.price - a.price);
+
+  // Merge static + live (deduplicate by price proximity)
+  const allPools = [...LIQUIDITY.map((l) => ({ ...l, isLive: false }))];
+  for (const lp of livePools) {
+    const isDuplicate = allPools.some((p) => Math.abs(p.price - lp.price) < 3);
+    if (!isDuplicate) {
+      allPools.push({
+        id: lp.id,
+        side: lp.side,
+        price: lp.price,
+        type: lp.type,
+        note: lp.note,
+        isLive: true,
+      });
+    }
+  }
+
+  const above = allPools.filter((l) => l.side === "above").sort((a, b) => a.price - b.price);
+  const below = allPools.filter((l) => l.side === "below").sort((a, b) => b.price - a.price);
 
   // Find nearest liquidity pool to live price (above and below)
   const nearestAbove = above.reduce((closest, l) =>
@@ -21,8 +46,8 @@ export function LiquidityMap() {
   const nearestBelow = below.reduce((closest, l) =>
     Math.abs(l.price - livePrice) < Math.abs(closest.price - livePrice) ? l : closest, below[0]);
 
-  const minPrice = Math.min(...above.map((l) => l.price), livePrice, CURRENT_MARKET.eightMonthLow);
-  const maxPrice = Math.max(...above.map((l) => l.price), livePrice);
+  const minPrice = Math.min(...allPools.map((l) => l.price), livePrice, CURRENT_MARKET.eightMonthLow);
+  const maxPrice = Math.max(...allPools.map((l) => l.price), livePrice);
   const range = Math.max(maxPrice - minPrice, 1);
 
   const pct = (price: number) => {
@@ -158,11 +183,15 @@ export function LiquidityMap() {
                 {above.map((l) => {
                   const isNearest = nearestAbove?.id === l.id;
                   const distance = Math.abs(l.price - livePrice);
+                  const isLive = (l as any).isLive === true;
                   return (
-                    <div key={l.id} className={`flex items-center justify-between rounded border px-3 py-1.5 ${isNearest ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-400/40" : "border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20"}`}>
+                    <div key={l.id} className={`flex items-center justify-between rounded border px-3 py-1.5 ${isNearest ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-400/40" : isLive ? "border-sky-300 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/10" : "border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20"}`}>
                       <div>
                         <span className="font-mono font-semibold text-sm">${l.price}</span>
                         <span className="ml-2 text-xs text-muted-foreground capitalize">{l.type.replace("-", " ")}</span>
+                        {isLive && (
+                          <span className="ml-2 text-[9px] font-bold text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-950/40 px-1 py-0.5 rounded">LIVE</span>
+                        )}
                         {isNearest && (
                           <span className="ml-2 text-[10px] font-semibold text-sky-700 dark:text-sky-300 uppercase">◀ Nearest</span>
                         )}
@@ -184,16 +213,21 @@ export function LiquidityMap() {
                 {below.map((l) => {
                   const isNearest = nearestBelow?.id === l.id;
                   const isPrimary = l.price === 3942;
+                  const isLive = (l as any).isLive === true;
                   const distance = Math.abs(l.price - livePrice);
                   return (
                     <div key={l.id} className={`flex items-center justify-between rounded border px-3 py-1.5 ${
                       isNearest ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30 ring-1 ring-sky-400/40" :
+                      isLive ? "border-sky-300 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/10" :
                       isPrimary ? "border-emerald-500 dark:border-emerald-400 bg-emerald-100/50 dark:bg-emerald-900/30 ring-1 ring-emerald-400/40" :
                       "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"
                     }`}>
                       <div>
                         <span className="font-mono font-semibold text-sm">${l.price}</span>
                         <span className="ml-2 text-xs text-muted-foreground capitalize">{l.type.replace("-", " ")}</span>
+                        {isLive && (
+                          <span className="ml-2 text-[9px] font-bold text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-950/40 px-1 py-0.5 rounded">LIVE</span>
+                        )}
                         {isPrimary && (
                           <span className="ml-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase">Primary</span>
                         )}

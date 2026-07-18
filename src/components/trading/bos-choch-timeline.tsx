@@ -25,6 +25,13 @@ export function BosChochTimeline() {
   const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
   const livePrice = state?.currentPrice ?? 4009.37;
 
+  // Combine static events with live-detected events
+  const liveEvents = state?.liveStructure?.events ?? [];
+  const allEvents = [
+    ...STRUCTURE_EVENTS.map((e) => ({ ...e, isLive: false })),
+    ...liveEvents.map((e) => ({ ...e, isLive: true })),
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -59,7 +66,7 @@ export function BosChochTimeline() {
           <div className="absolute left-3 sm:left-4 top-2 bottom-2 w-px bg-border" />
 
           <ul className="space-y-4">
-            {STRUCTURE_EVENTS.map((ev, i) => {
+            {allEvents.map((ev, i) => {
               const Icon = typeIcon[ev.type] ?? GitBranch;
               const isPending = ev.timestamp === "PENDING";
               // Auto-confirm PENDING events when live price crosses their level
@@ -68,19 +75,20 @@ export function BosChochTimeline() {
               const distanceToLevel = Math.abs(livePrice - ev.level);
               const isNearPending = isPending && !isConfirmed && distanceToLevel <= 30;
               const isBullish = ev.direction === "bullish";
+              const isLiveEvent = (ev as any).isLive === true;
               return (
                 <motion.li
-                  key={ev.id}
+                  key={`${ev.id}-${i}`}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   className="relative pl-10 sm:pl-12"
                 >
-                  <div className={`absolute left-0 top-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border-2 bg-background ${isConfirmed ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700" : typeColor[ev.type]}`}>
+                  <div className={`absolute left-0 top-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full border-2 bg-background ${isConfirmed ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700" : isLiveEvent ? "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30 border-sky-400 dark:border-sky-700" : typeColor[ev.type]}`}>
                     <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
 
-                  <div className={`rounded-lg border bg-card p-3 sm:p-4 ${isConfirmed ? "border-emerald-400 dark:border-emerald-700 ring-2 ring-emerald-400/40" : isNearPending ? "border-sky-400 dark:border-sky-700 ring-1 ring-sky-400/40" : ""}`}>
+                  <div className={`rounded-lg border bg-card p-3 sm:p-4 ${isConfirmed ? "border-emerald-400 dark:border-emerald-700 ring-2 ring-emerald-400/40" : isLiveEvent ? "border-sky-400 dark:border-sky-700 ring-1 ring-sky-400/40" : isNearPending ? "border-sky-400 dark:border-sky-700 ring-1 ring-sky-400/40" : ""}`}>
                     <div className="flex items-start justify-between flex-wrap gap-2 mb-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className={typeColor[ev.type]}>
@@ -90,7 +98,12 @@ export function BosChochTimeline() {
                           {isBullish ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                           {ev.direction}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs">{ev.timeframe}</Badge>
+                        <Badge variant="secondary" className="text-xs">{ev.timeframe || "Live"}</Badge>
+                        {isLiveEvent && (
+                          <Badge className="text-xs bg-sky-600 hover:bg-sky-700">
+                            <Radio className="mr-1 h-3 w-3" /> LIVE-DETECTED
+                          </Badge>
+                        )}
                         {isPending && isConfirmed && (
                           <Badge className="text-xs bg-emerald-600 hover:bg-emerald-700">
                             <Radio className="mr-1 h-3 w-3" /> CONFIRMED LIVE

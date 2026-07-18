@@ -62,6 +62,8 @@ export interface SignalState {
   bias: "bearish" | "neutral" | "bullish";
   /** Next update countdown (seconds) */
   nextUpdateIn: number;
+  /** Live-computed market structure (swings, zones, liquidity, events) */
+  liveStructure?: import("./live-structure").LiveStructure;
 }
 
 export interface PriceTick {

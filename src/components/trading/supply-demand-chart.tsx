@@ -197,8 +197,8 @@ export function SupplyDemandChart() {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
-          <ZoneSummary type="supply" livePrice={livePrice} />
-          <ZoneSummary type="demand" livePrice={livePrice} />
+          <ZoneSummary type="supply" livePrice={livePrice} liveZones={state?.liveStructure?.zones ?? []} />
+          <ZoneSummary type="demand" livePrice={livePrice} liveZones={state?.liveStructure?.zones ?? []} />
           <div className="rounded-lg border bg-muted/30 p-3">
             <div className="font-semibold mb-1 flex items-center gap-1.5">
               Trade Geometry
@@ -218,21 +218,27 @@ export function SupplyDemandChart() {
   );
 }
 
-function ZoneSummary({ type, livePrice }: { type: "supply" | "demand"; livePrice: number }) {
-  const zones = ZONES.filter((z) => z.type === type);
+function ZoneSummary({ type, livePrice, liveZones = [] }: { type: "supply" | "demand"; livePrice: number; liveZones?: any[] }) {
+  const staticZones = ZONES.filter((z) => z.type === type);
+  const liveZ = liveZones.filter((z) => z.type === type);
+  const allZones = [
+    ...staticZones.map((z) => ({ ...z, isLive: false })),
+    ...liveZ.map((z) => ({ ...z, isLive: true })),
+  ];
   const color = type === "supply" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400";
   return (
     <div className="rounded-lg border bg-muted/30 p-3">
-      <div className={`font-semibold mb-1 capitalize ${color}`}>{type} Zones ({zones.length})</div>
+      <div className={`font-semibold mb-1 capitalize ${color}`}>{type} Zones ({allZones.length}{liveZ.length > 0 && <span className="text-sky-600 dark:text-sky-400 ml-1">· {liveZ.length} live</span>})</div>
       <ul className="text-muted-foreground space-y-1">
-        {zones.map((z) => {
-          // Check if live price is inside this zone
+        {allZones.map((z, i) => {
           const inside = livePrice >= z.bottom && livePrice <= z.top;
           const distance = Math.min(Math.abs(livePrice - z.bottom), Math.abs(livePrice - z.top));
+          const isLive = z.isLive === true;
           return (
-            <li key={z.id} className={`text-xs ${inside ? "text-sky-700 dark:text-sky-300 font-semibold" : ""}`}>
+            <li key={`${z.id}-${i}`} className={`text-xs ${inside ? "text-sky-700 dark:text-sky-300 font-semibold" : ""} ${isLive ? "border-l-2 border-sky-400 pl-1.5" : ""}`}>
               <span className="font-mono">${z.bottom}–${z.top}</span>
-              <span className="ml-1">({z.timeframe}, {z.strength})</span>
+              <span className="ml-1">({z.timeframe || "Live"}, {z.strength})</span>
+              {isLive && <span className="ml-1 text-[9px] font-bold text-sky-600 dark:text-sky-400 uppercase bg-sky-100 dark:bg-sky-950/40 px-1 py-0.5 rounded">LIVE</span>}
               {inside && <span className="ml-1 text-[9px] uppercase">◀ LIVE HERE</span>}
               {!inside && <span className="ml-1 text-[10px] opacity-70">· ${distance.toFixed(0)} away</span>}
             </li>

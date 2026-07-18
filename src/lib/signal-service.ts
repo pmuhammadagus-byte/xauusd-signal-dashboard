@@ -18,6 +18,7 @@ import {
   type SignalState,
   type PriceTick,
 } from "@/lib/signal-engine";
+import { computeLiveStructure } from "@/lib/live-structure";
 
 const FETCH_INTERVAL_MS = 60_000;
 const MAX_HISTORY = 120;
@@ -74,13 +75,16 @@ async function fetchLivePrice(): Promise<PriceResult> {
 }
 
 function getCurrentState(nextUpdateOverride?: number): SignalState {
-  return computeSignalState(
+  const state = computeSignalState(
     currentPrice,
     previousPrice,
     history,
     lastFetchSource,
     nextUpdateOverride ?? nextUpdateIn,
   );
+  // Attach live-computed market structure (swings, zones, liquidity, events)
+  state.liveStructure = computeLiveStructure(history);
+  return state;
 }
 
 function notifySubscribers(state: SignalState): void {

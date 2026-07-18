@@ -132,13 +132,23 @@ export function useXauSignal(options: UseXauSignalOptions = {}): UseXauSignalRes
   };
 
   useEffect(() => {
-    // Initial fetch to get immediate data
-    fetchOnce();
+    // Use a flag to avoid setState during render phase
+    let cancelled = false;
 
-    // Start SSE stream (will fall back to polling on error)
-    startStream();
+    const init = () => {
+      if (cancelled) return;
+      // Initial fetch to get immediate data
+      fetchOnce();
+      // Start SSE stream (will fall back to polling on error)
+      startStream();
+    };
+
+    // Defer to next tick to avoid setState-in-effect warning
+    const timer = setTimeout(init, 0);
 
     return () => {
+      cancelled = true;
+      clearTimeout(timer);
       cleanup();
     };
   }, [reloadKey]);
