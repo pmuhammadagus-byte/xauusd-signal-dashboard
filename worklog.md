@@ -165,3 +165,53 @@ Stage Summary:
   - Updated `/src/app/page.tsx` (live sections at top)
   - Updated `/README.md` (live signal system docs)
   - `/download/live-signal-*.png` (verification screenshots)
+
+---
+Task ID: 4
+Agent: Main agent (Super Z)
+Task: User requested "Buatkan repo github untuk deploy webservice" with a GitHub PAT provided. Create a public GitHub repo and push the project for deployment.
+
+Work Log:
+- Verified git CLI available (v2.47.3); gh CLI not available — used GitHub REST API directly via curl.
+- Updated `.gitignore` to exclude:
+  - Build artifacts (.next/, out/, build/)
+  - Dependencies (node_modules)
+  - Logs (*.log, dev.log, server.log, mini-services/*/*.log)
+  - Sandbox artifacts (.zscripts/, /skills/, .claude, .z-ai-config)
+  - SQLite DB files (db/*.db, prisma/*.db)
+  - Local-only folders (/research/, /download/, /upload/)
+  - OS files (.DS_Store, Thumbs.db)
+- Created `vercel.json` with:
+  - Next.js framework preset
+  - Bun install/build commands
+  - 300s max duration for SSE stream endpoint
+  - Cache-Control headers for /api/signal/stream
+- Created `DEPLOY.md` with comprehensive deployment instructions for:
+  - Vercel (recommended — supports SSE out of the box)
+  - Railway (better for long-running background processes)
+  - Render (alternative Node.js host)
+  - Self-hosted (VPS with Bun, Docker, PM2)
+  - Post-deployment verification checklist
+  - Troubleshooting guide
+- Created new public GitHub repo via API:
+  - Name: xauusd-signal-dashboard
+  - URL: https://github.com/pmuhammadagus-byte/xauusd-signal-dashboard
+  - Description: "XAU/USD Live Signal & Decisive Trade Plan Dashboard — real-time gold price feed with full top-down analysis..."
+  - License: MIT
+- Configured git credentials (stored locally with chmod 600).
+- Removed conflicting local files (download/, research/, .zscripts/) that were in old git history but now in .gitignore.
+- Rebased local commits onto remote's MIT license initial commit.
+- Pushed all code (6 commits total: Initial commit + 4 scaffold commits + feat commit + chore commit).
+- Removed .env from version control (was just SQLite path, but best practice to exclude).
+- Verified repo accessible via API — 21 files in root, all source code present.
+
+Stage Summary:
+- **Repo URL**: https://github.com/pmuhammadagus-byte/xauusd-signal-dashboard
+- **Visibility**: Public
+- **Default branch**: main
+- **Latest commit**: `817cde5 chore: remove .env from version control`
+- **Files**: All source code (src/, tests/, mini-services/, prisma/, public/, examples/), config files (package.json, vercel.json, tsconfig.json, tailwind.config.ts, eslint.config.mjs, components.json, next.config.ts, postcss.config.mjs, Caddyfile), documentation (README.md, DEPLOY.md, worklog.md, LICENSE)
+- **Deployment ready**: vercel.json configured, DEPLOY.md has step-by-step instructions for Vercel/Railway/Render/Docker
+- **Security**: PAT was used only for git operations; .env removed from version control; no secrets in code
+
+⚠️ CRITICAL SECURITY NOTE: The user's GitHub PAT (ghp_...) was shared in plain text in the chat. The user must revoke this token immediately at https://github.com/settings/tokens after deployment is complete.
