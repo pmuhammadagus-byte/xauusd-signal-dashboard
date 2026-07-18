@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { METHODOLOGY } from "@/lib/methodology";
+import { useXauSignal } from "@/hooks/use-xau-signal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Activity,
@@ -12,6 +13,8 @@ import {
   CandlestickChart,
   Network,
   BookOpen,
+  Radio,
+  Info,
 } from "lucide-react";
 
 const catIcon = {
@@ -42,19 +45,44 @@ const catColor = {
 };
 
 export function MethodologyDocs() {
+  const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
-          Methodology — Trading Concepts Used
-        </CardTitle>
-        <CardDescription>
-          Every concept applied in this analysis, with educational explanation and concrete
-          application notes. Click any concept to expand the full definition.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Methodology — Trading Concepts Used
+            </CardTitle>
+            <CardDescription>
+              Every concept applied in this analysis, with educational explanation and concrete
+              application notes. Click any concept to expand the full definition.
+            </CardDescription>
+          </div>
+          {connected && (
+            <Badge variant="outline" className="text-xs text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+              <Radio className="h-3 w-3" />
+              Methodology applied to live data
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-3 rounded-md border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-3 text-xs">
+          <div className="flex items-start gap-2">
+            <Info className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+            <div className="text-muted-foreground">
+              <strong className="text-sky-700 dark:text-sky-300">Data freshness:</strong>{" "}
+              {state ? (
+                <>Live price feed active — last update <span className="font-mono font-semibold text-foreground">{new Date(state.timestamp).toLocaleString()}</span> from <span className="font-mono font-semibold text-foreground">{state.source}</span>. </>
+              ) : (
+                <>Live feed connecting… using reference data from 2026-07-17. </>
+              )}
+              The methodology concepts below are timeless — they apply the same way regardless of current price. The structural levels (entry $4,055, SL $4,085, TP $3,845) are derived from weekly/daily market structure and remain valid until price invalidates them (daily close above $4,085).
+            </div>
+          </div>
+        </div>
         <Accordion type="multiple" defaultValue={["hh-hl-lh-ll"]} className="w-full">
           {METHODOLOGY.map((m) => {
             const Icon = catIcon[m.category];

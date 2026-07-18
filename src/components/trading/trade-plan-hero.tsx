@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Radio,
 } from "lucide-react";
 import {
   Card,
@@ -25,10 +26,16 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { TRADE_PLAN } from "@/lib/trade-plan";
+import { useXauSignal } from "@/hooks/use-xau-signal";
 
 const isShort = TRADE_PLAN.direction === "SHORT";
 
 export function TradePlanHero() {
+  const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
+  const livePrice = state?.currentPrice ?? TRADE_PLAN.spotReference;
+  const liveDistance = Math.abs(livePrice - TRADE_PLAN.entry);
+  const liveStatus = state?.status ?? "WAITING";
+
   const dirIcon = isShort ? <TrendingDown className="h-5 w-5" /> : <TrendingUp className="h-5 w-5" />;
   const dirColor = isShort ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400";
   const dirBg = isShort ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900" : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900";
@@ -200,12 +207,63 @@ export function TradePlanHero() {
 
         <Separator />
 
-        {/* Spot reference */}
+        {/* Live status + spot reference */}
+        <div className="rounded-md border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-3 space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              {connected ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              ) : (
+                <Radio className="h-3 w-3 text-muted-foreground" />
+              )}
+              <span className="text-xs font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                Live Status: {liveStatus}
+              </span>
+              <Badge variant="outline" className="text-[10px]">{state?.source ?? "init"}</Badge>
+            </div>
+            {state && (
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {new Date(state.timestamp).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+            <span>
+              Live price:{" "}
+              <motion.span
+                key={livePrice}
+                initial={{ opacity: 0.5 }}
+                animate={{ opacity: 1 }}
+                className="font-mono font-semibold text-sky-700 dark:text-sky-300"
+              >
+                ${livePrice.toFixed(2)}
+              </motion.span>
+            </span>
+            <span>
+              Distance to entry:{" "}
+              <span className="font-mono font-semibold text-foreground">
+                ${liveDistance.toFixed(2)}
+              </span>
+              <span className="ml-1">
+                ({livePrice > TRADE_PLAN.entry ? "above" : "below"} entry)
+              </span>
+            </span>
+            {state?.pnlPerOz !== null && state?.pnlPerOz !== undefined && (
+              <span className={state.pnlPerOz >= 0 ? "text-emerald-600 dark:text-emerald-400 font-semibold" : "text-rose-600 dark:text-rose-400 font-semibold"}>
+                Unrealized PnL: {state.pnlPerOz >= 0 ? "+" : ""}${state.pnlPerOz.toFixed(2)}/oz ({state.pnlAsRR?.toFixed(2)}R)
+              </span>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Spot reference: <span className="font-mono">${TRADE_PLAN.spotReference.toFixed(2)}</span></span>
+          <span>Reference spot (2026-07-17): <span className="font-mono">${TRADE_PLAN.spotReference.toFixed(2)}</span></span>
           <span className="flex items-center gap-1">
             {isShort ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-            Entry {isShort ? "above" : "below"} spot by <span className="font-mono">${Math.abs(TRADE_PLAN.entry - TRADE_PLAN.spotReference).toFixed(2)}</span>
+            Entry {isShort ? "above" : "below"} reference by <span className="font-mono">${Math.abs(TRADE_PLAN.entry - TRADE_PLAN.spotReference).toFixed(2)}</span>
           </span>
         </div>
       </CardContent>

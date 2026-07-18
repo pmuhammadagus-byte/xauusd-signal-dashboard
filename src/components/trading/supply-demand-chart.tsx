@@ -14,8 +14,11 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ZONES, CURRENT_MARKET } from "@/lib/market-analysis";
 import { TRADE_PLAN } from "@/lib/trade-plan";
+import { useXauSignal } from "@/hooks/use-xau-signal";
+import { Clock, Radio } from "lucide-react";
 
 /**
  * Synthetic price-action series showing the recent 5-week consolidation
@@ -42,20 +45,47 @@ const PRICE_SERIES = [
 ];
 
 export function SupplyDemandChart() {
+  const { state, connected } = useXauSignal({ pollIntervalMs: 10000 });
+  const livePrice = state?.currentPrice ?? CURRENT_MARKET.spot;
+
+  // Append live ticks to the chart data
+  const liveTicks = state?.history?.slice(-8).map((tick, i) => ({
+    t: `Live ${i + 1}`,
+    price: tick.price,
+    note: `Live tick ${new Date(tick.timestamp).toLocaleTimeString()} (${tick.source})`,
+  })) ?? [];
+  const combinedData = [...PRICE_SERIES, ...liveTicks];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Supply & Demand Zones — Entry / Stop / TP Map</CardTitle>
-        <CardDescription>
-          5-week consolidation range with supply zones (red) and demand zones (green) overlaid.
-          The limit entry sits inside the fresh-tested-once supply at $4,055–$4,060, with stop
-          above range high and TP at the range-breakdown measured-move target.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              Supply & Demand Zones — Entry / Stop / TP Map
+              {connected && (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
+            </CardTitle>
+            <CardDescription>
+              5-week consolidation with supply/demand zones + entry/SL/TP overlays. Live ticks (right side) update every 60s.
+            </CardDescription>
+          </div>
+          {state && (
+            <Badge variant="outline" className="font-mono text-xs flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {new Date(state.timestamp).toLocaleTimeString()}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[460px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={PRICE_SERIES} margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
+            <ComposedChart data={combinedData} margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="t" tick={{ fontSize: 11 }} angle={-25} textAnchor="end" height={60} />
               <YAxis
@@ -124,6 +154,20 @@ export function SupplyDemandChart() {
                 label={{ value: `TP $${TRADE_PLAN.takeProfit}`, position: "right", fontSize: 11, fill: "#059669", fontWeight: 700 }}
               />
 
+              {/* LIVE price reference line (thick sky) */}
+              <ReferenceLine
+                y={livePrice}
+                stroke="#0ea5e9"
+                strokeWidth={3}
+                label={{
+                  value: `LIVE $${livePrice.toFixed(2)}`,
+                  position: "insideTopLeft",
+                  fontSize: 12,
+                  fill: "#0ea5e9",
+                  fontWeight: 800,
+                }}
+              />
+
               {/* Range boundaries */}
               <ReferenceLine
                 y={CURRENT_MARKET.rangeHigh_5wk}
@@ -153,13 +197,18 @@ export function SupplyDemandChart() {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
-          <ZoneSummary type="supply" />
-          <ZoneSummary type="demand" />
+          <ZoneSummary type="supply" livePrice={livePrice} />
+          <ZoneSummary type="demand" livePrice={livePrice} />
           <div className="rounded-lg border bg-muted/30 p-3">
-            <div className="font-semibold mb-1">Trade Geometry</div>
+            <div className="font-semibold mb-1 flex items-center gap-1.5">
+              Trade Geometry
+              {state && <span className="text-[9px] text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5"><Radio className="h-2.5 w-2.5" />LIVE</span>}
+            </div>
             <div className="text-muted-foreground space-y-0.5">
               <div>Range height: <span className="font-mono">${(CURRENT_MARKET.rangeHigh_5wk - CURRENT_MARKET.rangeLow_5wk).toFixed(2)}</span></div>
-              <div>Measured move: <span className="font-mono">${TRADE_PLAN.takeProfit}</span></div>
+              <div>Live price: <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">${livePrice.toFixed(2)}</span></div>
+              <div>To entry: <span className="font-mono">${Math.abs(livePrice - TRADE_PLAN.entry).toFixed(2)}</span></div>
+              <div>Measured move TP: <span className="font-mono">${TRADE_PLAN.takeProfit}</span></div>
               <div>Risk:Reward: <span className="font-mono">1:{TRADE_PLAN.rr}</span></div>
             </div>
           </div>
@@ -169,19 +218,26 @@ export function SupplyDemandChart() {
   );
 }
 
-function ZoneSummary({ type }: { type: "supply" | "demand" }) {
+function ZoneSummary({ type, livePrice }: { type: "supply" | "demand"; livePrice: number }) {
   const zones = ZONES.filter((z) => z.type === type);
   const color = type === "supply" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400";
   return (
     <div className="rounded-lg border bg-muted/30 p-3">
       <div className={`font-semibold mb-1 capitalize ${color}`}>{type} Zones ({zones.length})</div>
       <ul className="text-muted-foreground space-y-1">
-        {zones.map((z) => (
-          <li key={z.id} className="text-xs">
-            <span className="font-mono">${z.bottom}–${z.top}</span>
-            <span className="ml-1">({z.timeframe}, {z.strength})</span>
-          </li>
-        ))}
+        {zones.map((z) => {
+          // Check if live price is inside this zone
+          const inside = livePrice >= z.bottom && livePrice <= z.top;
+          const distance = Math.min(Math.abs(livePrice - z.bottom), Math.abs(livePrice - z.top));
+          return (
+            <li key={z.id} className={`text-xs ${inside ? "text-sky-700 dark:text-sky-300 font-semibold" : ""}`}>
+              <span className="font-mono">${z.bottom}–${z.top}</span>
+              <span className="ml-1">({z.timeframe}, {z.strength})</span>
+              {inside && <span className="ml-1 text-[9px] uppercase">◀ LIVE HERE</span>}
+              {!inside && <span className="ml-1 text-[10px] opacity-70">· ${distance.toFixed(0)} away</span>}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
