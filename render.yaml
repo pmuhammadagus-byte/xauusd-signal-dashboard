@@ -17,13 +17,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        render: true
-        # Render injects PORT automatically (default 10000)
       - key: HOSTNAME
         value: 0.0.0.0
       - key: DATABASE_URL
         value: file:./db/custom.db
         # SQLite file — for production-grade persistence, swap with
         # Render Postgres: https://render.com/docs/databases
+    # NOTE: PORT is auto-injected by Render for web services — do not declare it.
+    # The Next.js standalone server reads process.env.PORT automatically.
     numInstances: 1
