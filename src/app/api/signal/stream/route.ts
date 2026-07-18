@@ -2,10 +2,24 @@ import { ensureSignalServiceStarted, subscribeToSignal } from "@/lib/signal-serv
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
 
-ensureSignalServiceStarted();
+// Lazy-start on first request, NOT at module load (see api/signal/route.ts comment)
+let started = false;
+function ensureStarted() {
+  if (started) return;
+  started = true;
+  try {
+    ensureSignalServiceStarted();
+  } catch (e) {
+    console.error("[signal] failed to start service:", e);
+  }
+}
 
 export async function GET() {
+  ensureStarted();
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -49,10 +63,7 @@ export async function GET() {
         }
       };
 
-      // The Request object doesn't expose close directly in this signature,
-      // but Next.js will call cancel() on the stream when client disconnects.
-      // We hook into that via the underlying controller.
-      // For safety, we also set a max lifetime of 5 minutes per connection.
+      // Max lifetime of 5 minutes per connection (prevents zombie streams)
       setTimeout(cleanup, 5 * 60 * 1000);
     },
     cancel() {
