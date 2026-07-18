@@ -90,3 +90,78 @@ Stage Summary:
 - Layout: header bar → 3-column grid (Resistance/Support/Structure) → narrative footer.
 - Mobile responsive: 3-column grid stacks vertically on small screens.
 - All quality gates still pass: lint clean, 50/50 tests pass.
+
+---
+Task ID: 3
+Agent: Main agent (Super Z)
+Task: User requested "Oh jadikan website itu sinyal terus menerus jadi saya tinggal buka website kapan pun untuk analisa" — transform the static dashboard into a continuous real-time signal that auto-updates whenever the user opens the page.
+
+Work Log:
+- Designed a 3-layer live signal architecture:
+  1. Signal Engine (pure functions, shared between server and client)
+  2. In-process service (singleton inside Next.js server, fetches live prices every 60s)
+  3. SSE stream + REST fallback (real-time push to all connected clients)
+- Built signal engine (`src/lib/signal-engine.ts`):
+  - `computeSignalState()` — pure function computing status, distances, live PnL, live R:R, bias
+  - Status states: WAITING, ARMED, FILLED, ACTIVE, HIT_SL, HIT_TP, CANCELLED
+  - `appendTick()` — caps history at 120 ticks (~2 hours)
+  - `simulateNextPrice()` — mean-reverting random walk for fallback
+- Built in-process service (`src/lib/signal-service.ts`):
+  - Singleton module-level state (currentPrice, history, subscribers)
+  - Fetches live XAU/USD from gold-api.com every 60s (free, no API key)
+  - Falls back to simulation if API fails
+  - Subscriber pattern for SSE push
+  - Countdown ticker every 1s
+- Built API endpoints:
+  - `/api/signal` (GET) — one-shot JSON snapshot
+  - `/api/signal/stream` (GET) — SSE stream with 1s updates + 15s heartbeat
+- Built client hook (`src/hooks/use-xau-signal.ts`):
+  - Connects to SSE stream first, falls back to REST polling (10s) on error
+  - Exponential backoff reconnection (max 60s)
+  - Auto-cleanup on unmount
+- Built 3 live components:
+  - `LiveSignalBanner` — top-of-page banner with status badge, live price (animated), distance grid (entry/SL/TP), countdown, source indicator, LIVE/OFFLINE pill
+  - `LiveTradePanel` — live PnL big number, progress bar between SL→entry→TP, live R:R, distance grid
+  - `LivePriceChart` — Recharts area chart with entry/SL/TP zones, live price line, dynamic Y-axis domain, source indicator
+- Fixed initial-state logic bug: status was incorrectly "ACTIVE" on first load (spot below entry). Now correctly reports "WAITING" until entry is actually touched in live history.
+- Fixed live R:R calculation bug: `liveRisk` for SHORT was computing negative values. Now correctly = `stopLoss - currentPrice`.
+- Wrote 34 unit tests for signal engine (`tests/signal-engine.test.ts`) covering:
+  - All status transitions (WAITING, ARMED, ACTIVE, HIT_TP, HIT_SL)
+  - Distance calculations
+  - Live PnL and R:R
+  - Bias detection
+  - History capping
+  - Edge cases (price at entry/SL/TP, very large/small prices)
+  - Simulation mean-reversion and randomness
+- Integrated live components into page.tsx — added at top:
+  - LiveSignalBanner (full width)
+  - LiveTradePanel + LivePriceChart (2-column grid)
+  - Updated header to mention "Live Signal" and "Live feed active"
+- Updated README with live signal system documentation, API endpoints table, hook usage example.
+- Verified with Agent Browser:
+  - Page loads with LIVE indicator (green pulse)
+  - Live price $4,019.30 from gold-api.com (real data, not simulated)
+  - Status: WAITING FOR ENTRY (correct — spot below entry, no fill yet)
+  - Distance to entry/SL/TP all computed correctly
+  - Countdown timer ticking down (60s → 0s → refresh)
+  - Live chart shows 4+ ticks with entry/SL/TP overlays
+  - SSE stream pushes updates every second
+  - REST endpoint returns valid JSON
+  - Mobile responsive (390×844) verified
+
+Stage Summary:
+- **Live signal system fully operational**: page auto-updates every 60s with real XAU/USD prices from gold-api.com.
+- **Just open the page anytime** to see current price, signal status, distance to entry/SL/TP, and (when active) live PnL.
+- **Real-time push via SSE** — no refresh needed, updates flow automatically.
+- **Robust fallback**: SSE → REST polling (10s) → simulated price (mean-reverting random walk).
+- **Quality**: 84/84 tests pass, ESLint clean, no console errors, real live data flowing.
+- **Artifacts**:
+  - `/src/lib/signal-engine.ts` (pure signal logic)
+  - `/src/lib/signal-service.ts` (in-process singleton service)
+  - `/src/app/api/signal/route.ts` + `/src/app/api/signal/stream/route.ts` (API + SSE)
+  - `/src/hooks/use-xau-signal.ts` (client hook with auto-reconnect)
+  - `/src/components/trading/live-signal-banner.tsx`, `live-trade-panel.tsx`, `live-price-chart.tsx`
+  - `/tests/signal-engine.test.ts` (34 tests)
+  - Updated `/src/app/page.tsx` (live sections at top)
+  - Updated `/README.md` (live signal system docs)
+  - `/download/live-signal-*.png` (verification screenshots)

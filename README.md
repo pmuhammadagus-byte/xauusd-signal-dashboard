@@ -1,14 +1,13 @@
-# XAU/USD Decisive Trade Plan — Aggressive Execution Dashboard
+# XAU/USD Live Signal & Decisive Trade Plan — Aggressive Execution Dashboard
 
-A production-grade trading-analysis web application that performs a full, no-compromise top-down analysis of XAU/USD (gold spot vs US dollar) using methodologies from canonical trading literature:
+A production-grade trading-analysis web application that provides **continuous real-time XAU/USD signals** — just open the page anytime to see the current price, signal status, distance to entry/SL/TP, and live PnL. No refresh needed.
 
-- **Market Structure** — HH / HL / LH / LL swing sequence
-- **Smart Money Concepts (ICT)** — BOS (Break of Structure), CHoCH (Change of Character)
-- **Supply & Demand zones** — institutional order-block footprints
-- **Liquidity & stop hunting** — buy-stop / sell-stop pool mapping
-- **Candlestick confirmation** — engulfing, pin bar, marubozu, doji at structural levels
-- **Chart-pattern validation** — double-top, range breakdown, bearish flag
-- **Top-down analysis** — HTF (Weekly) → MTF (Daily) → LTF (4H / 1H) alignment
+The dashboard combines:
+- **Live signal feed** — Real-time price updates every 60s via SSE (Server-Sent Events) from gold-api.com
+- **Auto-status tracking** — WAITING → ARMED → FILLED → ACTIVE → HIT_TP / HIT_SL transitions automatically as price moves
+- **Live PnL monitor** — Unrealized profit/loss, live R:R, progress bar between SL and TP
+- **Full top-down analysis** — Market structure (HH/HL/LH/LL), supply & demand zones, liquidity & stop hunting, BOS/CHoCH, candlestick confirmation, chart-pattern validation
+- **Methodology documentation** — Every trading concept explained with concrete applications
 
 The output is a single, decisive trade plan with exact Entry, Hard Stop Loss, and Final Take Profit — every level logically derived from structure, liquidity, and price action.
 
@@ -55,6 +54,70 @@ Final TP at $3,845 — measured-move target from the 5-week range breakdown. Ran
 ### Expectancy
 
 At 30% win rate: (0.30 × $210) − (0.70 × $30) = **+$42 per trade per oz**.
+
+---
+
+## Live Signal System
+
+The dashboard is a **continuous real-time signal** — just open the page anytime to see the current state.
+
+### How it works
+
+1. **Backend (in-process)**: A singleton service runs inside the Next.js server process. Every 60 seconds it fetches the live XAU/USD price from `gold-api.com` (free, no API key required). If the fetch fails, it falls back to a mean-reverting random-walk simulation.
+
+2. **Signal engine** (`src/lib/signal-engine.ts`): Pure functions compute the live signal state from the current price + trade plan. Status transitions automatically:
+   - `WAITING` — Price below entry (for SHORT), waiting for rally into supply
+   - `ARMED` — Price within $10 of entry, about to trigger
+   - `ACTIVE` — Entry was touched in live history, position is live
+   - `HIT_TP` — Price reached take profit
+   - `HIT_SL` — Price reached stop loss
+
+3. **Real-time push** (SSE): The `/api/signal/stream` endpoint pushes live updates to all connected clients every second via Server-Sent Events. No WebSocket service needed.
+
+4. **Fallback** (REST polling): If SSE fails, the client hook (`useXauSignal`) automatically falls back to polling `/api/signal` every 10s. Auto-reconnect with exponential backoff.
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/signal` | GET | One-shot JSON snapshot of current signal state |
+| `/api/signal/stream` | GET | SSE stream — pushes live updates every second |
+| `/api/trade-plan` | GET | Static trade plan + market analysis (original) |
+
+### Live Components
+
+- `LiveSignalBanner` — Top-of-page banner with status, live price, distances, countdown, source
+- `LiveTradePanel` — Live PnL, progress bar between SL and TP, live R:R
+- `LivePriceChart` — Real-time price chart with entry/SL/TP overlays (Recharts)
+
+### Frontend Hook
+
+```typescript
+import { useXauSignal } from "@/hooks/use-xau-signal";
+
+function MyComponent() {
+  const { state, loading, error, connected, reconnect } = useXauSignal({
+    pollIntervalMs: 10000,  // REST polling fallback interval
+    useStream: true,         // use SSE stream (default true)
+  });
+
+  if (loading) return <div>Connecting…</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  return (
+    <div>
+      <h2>Status: {state.status}</h2>
+      <p>Live price: ${state.currentPrice.toFixed(2)}</p>
+      <p>Distance to entry: ${state.distanceToEntry.toFixed(2)}</p>
+      {state.pnlPerOz !== null && (
+        <p>Unrealized PnL: ${state.pnlPerOz.toFixed(2)}/oz ({state.pnlAsRR?.toFixed(2)}R)</p>
+      )}
+    </div>
+  );
+}
+```
+
+The hook handles SSE connection, automatic fallback to polling, exponential-backoff reconnection, and cleanup on unmount.
 
 ---
 

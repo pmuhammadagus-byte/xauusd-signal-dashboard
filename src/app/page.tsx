@@ -1,5 +1,8 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Radio } from "lucide-react";
 import { TradePlanHero } from "@/components/trading/trade-plan-hero";
+import { LiveSignalBanner } from "@/components/trading/live-signal-banner";
+import { LiveTradePanel } from "@/components/trading/live-trade-panel";
+import { LivePriceChart } from "@/components/trading/live-price-chart";
 import { MarketOverview } from "@/components/trading/market-overview";
 import { TopDownAnalysis } from "@/components/trading/topdown-analysis";
 import { StructureChart } from "@/components/trading/structure-chart";
@@ -34,13 +37,18 @@ export default function Home() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            XAU/USD Decisive Trade Plan
+            XAU/USD Live Signal & Trade Plan
           </h1>
           <p className="mt-3 text-base sm:text-lg text-muted-foreground max-w-3xl leading-relaxed">
-            Full, no-compromise top-down analysis using market structure (HH/HL/LH/LL),
-            supply & demand zones, liquidity & stop hunting, BOS/CHoCH, candlestick confirmation,
-            and chart-pattern validation. Every level is logically derived — not estimation.
+            Real-time XAU/USD signal dashboard. Live price feed updates every 60 seconds via SSE —
+            just open this page anytime to see current price, signal status, distance to entry/SL/TP,
+            and live PnL. Combined with full top-down analysis using market structure, supply & demand,
+            liquidity, BOS/CHoCH, candlestick confirmation, and chart-pattern validation.
           </p>
+          <div className="mt-3 flex items-center gap-2 text-xs text-sky-700 dark:text-sky-300">
+            <Radio className="h-4 w-4" />
+            <span><strong>Live feed active</strong> — page auto-updates. No refresh needed.</span>
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-1 font-semibold border border-rose-200 dark:border-rose-900">
@@ -75,7 +83,18 @@ export default function Home() {
 
       {/* Main content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
-        {/* Hero trade plan */}
+        {/* LIVE signal banner — always at top */}
+        <section id="live-signal">
+          <LiveSignalBanner />
+        </section>
+
+        {/* Live trade monitor + live chart side by side */}
+        <section id="live-monitor" className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+          <LiveTradePanel />
+          <LivePriceChart />
+        </section>
+
+        {/* Hero trade plan (the structural setup) */}
         <section id="trade-plan">
           <TradePlanHero />
         </section>
