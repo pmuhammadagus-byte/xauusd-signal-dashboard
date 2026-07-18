@@ -4,45 +4,74 @@ This guide walks you through deploying the XAU/USD Live Signal Dashboard to a pr
 
 ---
 
-## ✅ Recommended: Vercel (easiest, free tier)
+## ✅ Recommended: Render (one-click deploy)
 
-Vercel is the official host for Next.js and supports SSE streaming out of the box.
+The repo includes a `render.yaml` blueprint for one-click deployment.
 
 ### Steps
 
-1. **Push to GitHub** (already done — see `git remote -v`).
+1. **One-click deploy link** — click this URL (login to Render first if needed):
 
-2. **Go to Vercel**: https://vercel.com/new
+   👉 **https://render.com/deploy?repo=https://github.com/pmuhammadagus-byte/xauusd-signal-dashboard**
 
-3. **Import the GitHub repo**:
-   - Click "Import Git Repository"
-   - Select the `xauusd-signal-dashboard` repo (or whatever you named it)
+   Or manually: open https://dashboard.render.com → **New +** → **Blueprint** → select the `xauusd-signal-dashboard` repo.
 
-4. **Configure the project**:
-   - **Framework Preset**: Next.js (auto-detected)
-   - **Build Command**: `bun run build` (or leave default `next build`)
-   - **Output Directory**: `.next` (auto-detected)
-   - **Install Command**: `bun install` (or `npm install`)
-   - **Root Directory**: `./` (default)
+2. **Render reads `render.yaml`** and auto-fills:
+   - **Name**: `xauusd-signal-dashboard`
+   - **Runtime**: Node.js
+   - **Plan**: Free
+   - **Region**: Singapore
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Health Check**: `GET /api/signal`
 
-5. **Environment Variables** (optional — the app works without any):
-   - The app uses no required env vars. The SQLite DATABASE_URL is auto-set by Vercel's Postgres or you can leave it default.
-   - If you want to use a real database, add `DATABASE_URL` pointing to a Vercel Postgres or external DB.
+3. **Review and click "Apply"** — Render will:
+   - Pull the repo
+   - Run `npm install`
+   - Run `npm run build` (Next.js standalone build — ~2 minutes)
+   - Start `npm start` (Node.js serving the standalone build)
+   - Issue a URL like `https://xauusd-signal-dashboard.onrender.com`
 
-6. **Deploy**:
-   - Click "Deploy"
-   - Wait ~2-3 minutes for the build to complete
-   - Vercel assigns a URL like `https://xauusd-signal-dashboard.vercel.app`
+4. **First deploy takes ~3-5 minutes** (free plan builds are slower than paid). Watch the build logs — you should see:
+   ```
+   ✓ Compiled successfully in 15.4s
+   ✓ Generating static pages using 1 worker (5/5) in 377.5ms
+   [signal] starting in-process signal service (60s interval)
+   [signal] price=$4019.30 src=gold-api.com status=WAITING dist=$35.70 subs=0
+   ```
 
-7. **Verify**:
-   - Visit the deployed URL
-   - The live signal banner should show "LIVE" with the current gold price from `gold-api.com`
-   - SSE stream should push updates every second
+5. **Verify** at the deployed URL:
+   - Live signal banner shows "LIVE" with green pulse
+   - Current price $4,019+ from `gold-api.com`
+   - Status badge shows "WAITING FOR ENTRY" (or current state)
+   - Countdown timer ticking down (60s → 0s → refresh)
+   - Live chart shows price line with entry/SL/TP zones
 
-### Notes for Vercel
-- **SSE streaming**: Vercel supports SSE on Edge and Node.js runtimes. The `/api/signal/stream` route runs on Node.js with a 300s max duration (see `vercel.json`).
-- **Background fetcher**: The signal service runs as an in-process singleton — every Vercel serverless instance has its own fetcher. This is fine for low-traffic use. For high-traffic production, consider moving the fetcher to a separate worker (Upstash QStash, Vercel Cron, or a dedicated service).
-- **Cold starts**: The first request after idle may take ~1s extra. Subsequent requests are instant.
+### Notes for Render
+- **Free plan limitations**: Service spins down after 15 minutes of inactivity. First request after idle takes ~30s to spin up (cold start). For always-on, upgrade to the Starter plan ($7/month).
+- **SSE streaming**: Render supports SSE on Node.js runtime — no special config needed.
+- **Background fetcher**: The signal service runs as an in-process singleton — every Render instance has its own fetcher. Free plan = 1 instance, so this works perfectly.
+- **SQLite persistence**: The free plan uses an ephemeral filesystem. The SQLite DB resets on each deploy. For the live signal dashboard this is fine (the app doesn't require persistent DB). If you extend the app to store trade history, upgrade to Render Postgres.
+
+### Troubleshooting Render
+- **Build fails with "Cannot find module"**: Make sure `npm install` runs first. The `render.yaml` build command is `npm install && npm run build` — both run in sequence.
+- **SSE returns 502**: Render's load balancer may time out long connections. The `/api/signal/stream` route has a 5-minute max lifetime per connection (set in code) — clients auto-reconnect.
+- **Cold start delays**: Free plan services sleep after 15 min idle. Visit the URL → 30s spin-up → page loads normally.
+- **Want always-on?** Upgrade to Starter plan ($7/month) — service stays warm, no cold starts.
+
+---
+
+## Alternative: Vercel
+
+Vercel is the official host for Next.js and supports SSE streaming out of the box.
+
+1. Go to https://vercel.com/new
+2. Import the GitHub repo `xauusd-signal-dashboard`
+3. Framework preset auto-detects Next.js — accept defaults
+4. Click "Deploy"
+5. Vercel issues a URL like `https://xauusd-signal-dashboard.vercel.app`
+
+The repo includes `vercel.json` with SSE-compatible function config (300s max duration for `/api/signal/stream`).
 
 ---
 
@@ -58,29 +87,27 @@ Railway supports long-running Node.js processes (better for the background fetch
 
 ---
 
-## Alternative: Render
-
-1. Go to https://render.com → New → Web Service
-2. Connect GitHub repo
-3. Settings:
-   - **Build Command**: `bun install && bun run build`
-   - **Start Command**: `bun run start` (after running `bun run build` once)
-   - **Environment**: Node 20+ or Bun
-4. Deploy
-
----
-
 ## Alternative: Self-hosted (VPS / Docker)
+
+### Using Node directly
+
+```bash
+# On your VPS:
+git clone https://github.com/pmuhammadagus-byte/xauusd-signal-dashboard.git
+cd xauusd-signal-dashboard
+npm install
+npm run build
+npm start    # starts production server on port 3000
+```
 
 ### Using Bun directly
 
 ```bash
-# On your VPS:
-git clone https://github.com/<your-username>/xauusd-signal-dashboard.git
+git clone https://github.com/pmuhammadagus-byte/xauusd-signal-dashboard.git
 cd xauusd-signal-dashboard
 bun install
 bun run build
-bun run start    # starts production server on port 3000
+bun run start:bun    # uses bun runtime (faster startup)
 ```
 
 ### Using Docker
