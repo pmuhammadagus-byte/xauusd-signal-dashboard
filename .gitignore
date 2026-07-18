@@ -36,19 +36,41 @@ yarn-error.log*
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 local-*
+
+# Claude / Z.ai sandbox artifacts
 .claude
 .z-ai-config
+.zscripts/
 *.log
 dev.log
 dev.out.log
-test
-prompt
-
 server.log
-# Skills directory
+mini-services/*/service.log
+mini-services/*/*.log
+
+# Skills directory (sandbox-only)
 /skills/
+
+# SQLite database (regenerated on first run)
+/db/*.db
+/db/*.db-journal
+/prisma/*.db
+
+# Local research artifacts (kept locally, not deployed)
+/research/
+
+# Local screenshots (downloadable artifacts, not source)
+/download/
+
+# Upload sandbox folder
+/upload/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "bun run build",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
+  "outputDirectory": ".next",
+  "regions": ["sin1", "hnd1", "iad1"],
+  "functions": {
+    "src/app/api/signal/stream/route.ts": {
+      "maxDuration": 300
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/signal/stream",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, no-transform" },
+        { "key": "Connection", "value": "keep-alive" },
+        { "key": "X-Accel-Buffering", "value": "no" }
+      ]
+    }
+  ]
+}
