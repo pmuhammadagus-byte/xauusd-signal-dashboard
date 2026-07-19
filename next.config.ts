@@ -11,9 +11,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // Reduce memory usage during build (helps with Render free plan 512MB RAM)
   experimental: {
-    // Disable some features that consume memory during build
-    optimizePackageImports: ["lucide-react", "recharts", "@radix-ui/react-icons"],
+    optimizePackageImports: ["lucide-react", "recharts"],
   },
+  // Copy static + public files into standalone automatically during build
+  // (no need for manual cp commands in package.json)
+  outputFileTracingRoot: undefined,
 };
 
 export default nextConfig;

@@ -26,8 +26,12 @@ Manual deployment guide for Render (and other hosts). The app is a standard Next
    | **Branch** | `main` |
    | **Root Directory** | (leave blank) |
    | **Build Command** | `npm install && npm run build` |
-   | **Start Command** | `npm start` |
+   | **Start Command** | `npm run start:simple` |
    | **Instance Type** | Free (`$0/month`) |
+
+   **Important note about Start Command**:
+   - `npm run start:simple` (uses `next start`) — **recommended for Render free plan**, simpler and more reliable
+   - `npm start` (uses `node .next/standalone/server.js`) — uses standalone output, smaller memory footprint but requires the postbuild copy step to succeed
 
 4. **Environment Variables** (click "Advanced" → "Add Environment Variable"):
 
