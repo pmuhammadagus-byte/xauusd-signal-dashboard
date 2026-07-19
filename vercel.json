@@ -3,7 +3,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "regions": ["sin1", "hnd1", "iad1"],
+  "regions": ["sin1"],
   "functions": {
     "src/app/api/signal/stream/route.ts": {
       "maxDuration": 60,
